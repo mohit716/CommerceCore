@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import type { Environment } from './common/config/environment';
 import { sessionCookieName } from './modules/auth/session';
+import { requestLogging } from './common/monitoring/request-logging';
 
 export function configureApp(app: INestApplication): void {
   const config = app.get(ConfigService<Environment, true>);
@@ -20,6 +21,7 @@ export function configureApp(app: INestApplication): void {
   );
   app.useGlobalFilters(new ApiExceptionFilter(app.get(HttpAdapterHost)));
   app.use(helmet());
+  app.use(requestLogging);
   app.enableCors({ origin: config.get('WEB_ORIGIN', { infer: true }) });
   app.enableShutdownHooks();
   const document = SwaggerModule.createDocument(

@@ -4,8 +4,9 @@ Admin product/category management, product archival, inventory adjustments, audi
 and image-upload UI/API are implemented. Cloudinary is the only external integration in
 this phase. Local tests use fake credentials and mocked provider responses.
 
-**Live Cloudinary upload verification awaits credentials and explicit approval.**
-Phases 5–9 must not begin until this phase's verification gate is complete.
+**Phase 4 is locally verified.** The user explicitly deferred live Cloudinary
+verification and authorized Phases 5–9 to continue using the mocked integration.
+Real Cloudinary credentials and live uploads remain outside the authorized scope.
 
 ## Admin access
 

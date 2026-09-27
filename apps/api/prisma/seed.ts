@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { validateEnvironment } from '../src/common/config/environment';
+import { invalidateCatalog } from '../src/infrastructure/redis/catalog-revision';
 
 config({ path: ['.env', '../../.env'], quiet: true });
 const prisma = new PrismaService(new ConfigService(validateEnvironment(process.env)));
@@ -134,6 +135,7 @@ async function seed() {
           },
         });
       }
+      await invalidateCatalog(tx);
     },
     { timeout: 30000 },
   );

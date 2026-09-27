@@ -1,3 +1,11 @@
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 export async function authenticatedMutation(
   path: string,
   method: string,
@@ -14,8 +22,9 @@ export async function authenticatedMutation(
   });
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(
+    throw new ApiError(
       Array.isArray(error.message) ? error.message.join(' ') : (error.message ?? 'Request failed.'),
+      response.status,
     );
   }
   return response;

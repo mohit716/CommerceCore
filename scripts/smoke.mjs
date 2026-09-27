@@ -79,6 +79,10 @@ try {
       categoryId,
     ],
   );
+  await database.query(
+    'INSERT INTO "Inventory" ("productId","onHand","updatedAt") VALUES ($1,5,now())',
+    [productId],
+  );
   const api = launch('apps/api', ['dist/main.js'], {
     API_PORT: String(apiPort),
     DATABASE_URL: databaseUrl.toString(),
@@ -98,6 +102,7 @@ try {
   ]);
   const catalogResponse = await fetch(`${apiBase}/api/v1/products?search=keyboard`);
   assert.equal(catalogResponse.status, 200);
+  assert.match(catalogResponse.headers.get('x-request-id'), /^[a-f0-9-]{36}$/);
   const catalog = await catalogResponse.json();
   assert.ok(catalog.items.length > 0);
   const product = catalog.items[0];
@@ -127,11 +132,65 @@ try {
   const csrf = await (
     await fetch(`${webBase}/api/backend/auth/csrf`, { headers: { Cookie: cookie } })
   ).json();
+  const cartUpdate = await fetch(`${webBase}/api/backend/cart/items/${productId}`, {
+    method: 'PUT',
+    headers: {
+      Cookie: cookie,
+      Origin: webBase,
+      'X-CSRF-Token': csrf.csrfToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ version: 0, quantity: 1 }),
+  });
+  assert.equal(cartUpdate.status, 200);
+  assert.equal((await cartUpdate.json()).subtotalMinor, 12900);
+  const cartPage = await fetch(`${webBase}/cart`, { headers: { Cookie: cookie } });
+  assert.equal(cartPage.status, 200);
+  assert.ok((await cartPage.text()).includes('Smoke Keyboard'));
+  const checkoutPage = await fetch(`${webBase}/checkout`, { headers: { Cookie: cookie } });
+  assert.equal(checkoutPage.status, 200);
+  assert.ok((await checkoutPage.text()).includes('Street address'));
+  const checkout = await fetch(`${webBase}/api/backend/checkout`, {
+    method: 'POST',
+    headers: {
+      Cookie: cookie,
+      Origin: webBase,
+      'X-CSRF-Token': csrf.csrfToken,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': randomUUID(),
+    },
+    body: JSON.stringify({
+      cartVersion: 1,
+      shippingAddress: {
+        name: 'Smoke Customer',
+        line1: '1 Main St',
+        city: 'Boston',
+        region: 'MA',
+        postalCode: '02110',
+        country: 'US',
+      },
+    }),
+  });
+  assert.equal(checkout.status, 201);
+  const order = await checkout.json();
+  assert.equal(order.status, 'PENDING_PAYMENT');
+  assert.equal(order.totalMinor, 12900);
+  const orderDetail = await fetch(`${webBase}/api/backend/orders/${order.id}`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(orderDetail.status, 200);
+  const orderPage = await fetch(`${webBase}/orders/${order.id}`, { headers: { Cookie: cookie } });
+  assert.equal(orderPage.status, 200);
+  assert.ok((await orderPage.text()).includes('Payment has not been confirmed'));
+  assert.equal((await fetch(`${webBase}/orders`, { headers: { Cookie: cookie } })).status, 200);
   // Promotion is confined to this script's temporary schema and its own fixture account.
   await database.query('UPDATE "User" SET role=\'ADMIN\' WHERE email=$1', ['smoke@example.test']);
   const adminPage = await fetch(`${webBase}/admin`, { headers: { Cookie: cookie } });
   assert.equal(adminPage.status, 200);
   assert.ok((await adminPage.text()).includes('Catalog management'));
+  const operations = await fetch(`${webBase}/admin/operations`, { headers: { Cookie: cookie } });
+  assert.equal(operations.status, 200);
+  assert.ok((await operations.text()).includes('Notification delivery'));
   const logout = await fetch(`${webBase}/api/backend/auth/logout`, {
     method: 'POST',
     headers: { Cookie: cookie, Origin: webBase, 'X-CSRF-Token': csrf.csrfToken },

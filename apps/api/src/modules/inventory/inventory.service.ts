@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { invalidateCatalog } from '../../infrastructure/redis/catalog-revision';
 
 @Injectable()
 export class InventoryService {
@@ -33,7 +34,11 @@ export class InventoryService {
         where: { productId },
         data: { onHand: { increment: input.delta } },
       });
-      return tx.inventoryMovement.create({ data: { productId, actorId, ...input } });
+      const movement = await tx.inventoryMovement.create({
+        data: { productId, actorId, ...input },
+      });
+      await invalidateCatalog(tx);
+      return movement;
     });
   }
   movements(productId: string, page: number, limit: number) {

@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { AddToCart } from '@/features/cart/add-to-cart';
 import { ApiError, catalogRequest, formatPrice, type Product } from '@/lib/catalog';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <p className="mt-8 rounded-lg border border-slate-700 p-4 text-sm">
             {product.available ? 'Available' : 'Currently out of stock'}
           </p>
+          <AddToCart productId={product.id} available={product.available} />
         </div>
       </div>
     </section>

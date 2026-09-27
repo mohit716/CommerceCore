@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { config } from 'dotenv';
 import { Client } from 'pg';
@@ -21,9 +21,10 @@ test('real catalog repository, HTTP filters, visibility, pagination, and databas
   let app: import('@nestjs/common').INestApplication | undefined;
   try {
     await client.query(`SET search_path TO "${schema}"`);
-    await client.query(
-      readFileSync('prisma/migrations/202609270001_catalog/migration.sql', 'utf8'),
-    );
+    for (const entry of readdirSync('prisma/migrations', { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .sort((a, b) => a.name.localeCompare(b.name)))
+      await client.query(readFileSync(`prisma/migrations/${entry.name}/migration.sql`, 'utf8'));
     const testUrl = new URL(originalUrl);
     testUrl.searchParams.set('schema', schema);
     process.env.DATABASE_URL = testUrl.toString();

@@ -8,11 +8,15 @@ import type { Environment } from './common/config/environment';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
+    rawBody: true,
     logger: new ConsoleLogger({ json: true }),
   });
   configureApp(app);
   const config = app.get(ConfigService<Environment, true>);
-  await app.listen(config.get('API_PORT', { infer: true }), '0.0.0.0');
+  await app.listen(
+    config.get('PORT', { infer: true }) ?? config.get('API_PORT', { infer: true }),
+    '0.0.0.0',
+  );
 }
 
 void bootstrap().catch(() => {

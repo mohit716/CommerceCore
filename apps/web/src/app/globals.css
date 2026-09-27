@@ -9,6 +9,20 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+:focus-visible {
+  outline: 2px solid #5eead4;
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+
 @layer components {
   .field {
     @apply w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:border-teal-300 focus:outline-2 focus:outline-teal-300;

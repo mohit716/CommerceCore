@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch, HttpException, Logger, type ExceptionFilter } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { randomUUID } from 'node:crypto';
+import * as Sentry from '@sentry/node';
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -46,7 +47,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
         message = 'The requested record was not found.';
       }
     }
-    if (status >= 500) this.logger.error({ requestId, status, code });
+    if (status >= 500) {
+      this.logger.error({ requestId, status, code });
+      if (Sentry.isInitialized()) Sentry.captureException(error, { tags: { requestId, code } });
+    }
     this.adapterHost.httpAdapter.reply(http.getResponse(), { code, message, requestId }, status);
   }
 }

@@ -29,6 +29,8 @@ model User {
   updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
   sessions           Session[]
   inventoryMovements InventoryMovement[]
+  cart               Cart?
+  orders             Order[]
 }
 
 model Session {
@@ -55,25 +57,49 @@ model Category {
 }
 
 model Product {
-  id                 String              @id @default(uuid()) @db.Uuid
-  sku                String              @unique @db.VarChar(80)
-  slug               String              @unique @db.VarChar(160)
-  name               String              @db.VarChar(160)
+  id                 String                 @id @default(uuid()) @db.Uuid
+  sku                String                 @unique @db.VarChar(80)
+  slug               String                 @unique @db.VarChar(160)
+  name               String                 @db.VarChar(160)
   description        String
   priceMinor         Int
-  currency           String              @default("USD") @db.VarChar(3)
-  status             ProductStatus       @default(DRAFT)
-  categoryId         String              @db.Uuid
-  category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  currency           String                 @default("USD") @db.VarChar(3)
+  status             ProductStatus          @default(DRAFT)
+  categoryId         String                 @db.Uuid
+  category           Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images             ProductImage[]
   inventory          Inventory?
   inventoryMovements InventoryMovement[]
-  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  reservations       InventoryReservation[]
+  createdAt          DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime               @updatedAt @db.Timestamptz(3)
 
   @@index([status, categoryId, priceMinor, id])
   @@index([status, createdAt, id])
   @@index([categoryId])
+}
+
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @unique @db.Uuid
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version   Int        @default(0)
+  items     CartItem[]
+  createdAt DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(3)
+}
+
+model CartItem {
+  cartId    String  @db.Uuid
+  productId String  @db.Uuid
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int
+
+  @@id([cartId, productId])
+  @@index([productId])
 }
 
 model ProductImage {
@@ -111,4 +137,124 @@ model InventoryMovement {
   @@unique([productId, operationId])
   @@index([productId, createdAt, id])
   @@index([actorId])
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum ReservationStatus {
+  HELD
+  CONSUMED
+  RELEASED
+}
+
+model Order {
+  id              String                 @id @default(uuid()) @db.Uuid
+  userId          String                 @db.Uuid
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status          OrderStatus            @default(PENDING_PAYMENT)
+  idempotencyKey  String                 @db.Uuid
+  requestHash     String                 @db.VarChar(64)
+  totalMinor      Int
+  currency        String                 @default("USD") @db.VarChar(3)
+  shippingAddress Json
+  expiresAt       DateTime               @db.Timestamptz(3)
+  createdAt       DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime               @updatedAt @db.Timestamptz(3)
+  items           OrderItem[]
+  reservations    InventoryReservation[]
+  paymentAttempt  PaymentAttempt?
+  outboxEvents    OutboxEvent[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt, id])
+  @@index([status, expiresAt])
+}
+
+model OrderItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  orderId        String  @db.Uuid
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  productId      String  @db.Uuid
+  product        Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  sku            String  @db.VarChar(80)
+  name           String  @db.VarChar(160)
+  quantity       Int
+  unitPriceMinor Int
+  lineTotalMinor Int
+
+  @@unique([orderId, productId])
+  @@index([productId])
+}
+
+model InventoryReservation {
+  id        String            @id @default(uuid()) @db.Uuid
+  orderId   String            @db.Uuid
+  order     Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  productId String            @db.Uuid
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int
+  status    ReservationStatus @default(HELD)
+  expiresAt DateTime          @db.Timestamptz(3)
+
+  @@unique([orderId, productId])
+  @@index([status, expiresAt])
+  @@index([productId])
+}
+
+enum PaymentStatus {
+  CREATING
+  OPEN
+  PAID
+  EXPIRED
+  REVIEW_REQUIRED
+}
+
+model PaymentAttempt {
+  id              String        @id @default(uuid()) @db.Uuid
+  orderId         String        @unique @db.Uuid
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  status          PaymentStatus @default(CREATING)
+  stripeSessionId String?       @unique
+  checkoutUrl     String?
+  amountMinor     Int
+  currency        String        @db.VarChar(3)
+  requestParams   Json
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+}
+
+model WebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model CatalogRevision {
+  id      Int    @id
+  version BigInt @default(0)
+}
+
+model OutboxEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  orderId       String    @db.Uuid
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  type          String    @default("ORDER_CONFIRMED")
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  deliveredAt   DateTime? @db.Timestamptz(3)
+  nextAttemptAt DateTime  @default(now()) @db.Timestamptz(3)
+  leaseUntil    DateTime? @db.Timestamptz(3)
+  leaseToken    String?   @db.Uuid
+  attempts      Int       @default(0)
+  lastError     String?
+
+  @@unique([orderId, type])
+  @@index([deliveredAt, nextAttemptAt])
 }

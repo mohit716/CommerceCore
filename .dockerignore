@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/dist
+**/.test-dist
+**/.seed-dist
+**/src/generated
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.codex
+.agents
+**/*.log
+**/tsconfig.tsbuildinfo

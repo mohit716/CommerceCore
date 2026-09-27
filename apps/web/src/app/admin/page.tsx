@@ -30,6 +30,9 @@ export default async function AdminPage({
   return (
     <section className="py-12">
       <p className="text-sm text-teal-300">Store operations</p>
+      <Link href="/admin/operations" className="mt-3 inline-block text-teal-300 underline">
+        Orders and background jobs
+      </Link>
       <h1 className="mt-3 mb-8 text-4xl font-semibold">Catalog management</h1>
       <AdminPanel products={data.items} categories={categories} />
       <nav aria-label="Admin pagination" className="mt-8 flex justify-center gap-6">

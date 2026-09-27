@@ -20,7 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <header className="border-b border-slate-800">
           <nav
             aria-label="Main navigation"
-            className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6"
+            className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-6"
           >
             <Link href="/" className="text-xl font-semibold tracking-tight">
               Commerce<span className="text-teal-300">Core</span>
@@ -30,6 +30,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </Link>
             <Link href="/account" className="text-sm text-teal-300">
               Account
+            </Link>
+            <Link href="/cart" className="text-sm text-teal-300">
+              Cart
+            </Link>
+            <Link href="/orders" className="text-sm text-teal-300">
+              Orders
             </Link>
           </nav>
         </header>
