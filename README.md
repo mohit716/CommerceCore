@@ -1,7 +1,10 @@
 # CommerceCore
 
 A portfolio ecommerce application built incrementally as a modular monolith.
-This repository currently contains **Phase 1: project foundation only**.
+Catalog and authentication are implemented and verified. Admin/inventory and image-upload
+integration are implemented; live Cloudinary verification requires credentials and approval.
+See [catalog](docs/phase-2.md), [authentication](docs/phase-3.md), [admin setup](docs/phase-4.md),
+and the [phase implementation record](docs/implementation-progress.md). Phases 5–9 are pending.
 
 ## Requirements
 
@@ -21,7 +24,10 @@ Copy-Item .env.example .env
 Copy-Item apps/web/.env.example apps/web/.env.local
 pnpm install --frozen-lockfile
 pnpm infra:up
+pnpm --filter @commerce-core/api db:generate
 pnpm db:validate
+pnpm --filter @commerce-core/api db:deploy
+pnpm --filter @commerce-core/api db:seed
 pnpm dev
 ```
 
@@ -93,23 +99,22 @@ SMTP settings are documented for the local inbox; there is no email-sending code
   generic `503` on a backend error or timeout.
 - Mailpit is optional development tooling and does not gate API readiness.
 
-The API uses Nest's JSON console logger, Helmet, an explicit CORS origin, and graceful
-connection shutdown. Authentication and ecommerce-specific middleware arrive in later phases.
+The API uses Nest's JSON console logger, Helmet, an explicit CORS origin, validated DTOs,
+centralized errors, secure sessions, CSRF protection, and graceful connection shutdown.
 
 ## Prisma initialization
 
 The Prisma 7 configuration separates the connection URL (`prisma.config.ts`) from the
-schema (`prisma/schema.prisma`). The schema intentionally contains **no domain models**.
-There are no migrations or fabricated placeholder tables in Phase 1.
+schema (`prisma/schema.prisma`). It includes catalog, inventory, user, session, and stock-audit
+models. Committed additive migrations and database constraints preserve existing data.
 
 ```powershell
 pnpm db:validate
 ```
 
-Client generation, the PostgreSQL Prisma adapter, repository wiring, and the first migration
-will be added with actual models in Phase 2. `db:generate`, `db:migrate`, and `db:deploy`
-are prepared as API package scripts for that phase; no migration or client generation is
-required for the current application. The small `pg` pool currently exists only for readiness.
+Generate the client before type checks or builds. Use `db:deploy` to apply committed migrations;
+never reset a database containing data you need. The demo seed only inserts missing records.
+The separate small `pg` pool is used only for readiness probes.
 
 ## Quality checks
 
@@ -122,10 +127,11 @@ pnpm db:validate
 pnpm build
 # Requires pnpm infra:up:
 pnpm test:integration
+pnpm test:smoke
 ```
 
-`pnpm format` applies formatting. `pnpm test` runs environment validation, API HTTP
-health contracts with controlled dependency failures, and the web health proxy tests.
+`pnpm format` applies formatting. `pnpm test` covers environment validation, catalog queries,
+authentication primitives, authorization, HTTP contracts, mocked storage, and web helpers.
 `pnpm test:integration` boots the real Nest application and queries real PostgreSQL/Redis;
 it fails rather than silently skips when those services are unavailable.
 
@@ -139,7 +145,8 @@ the lint stack together once those plugins support ESLint 10. The lockfile fixes
 installed versions for reproducible local and CI runs.
 
 GitHub Actions installs the frozen lockfile, starts Compose, checks formatting/lint/types,
-validates Prisma, runs both test suites, verifies Mailpit, and builds both applications.
+generates and validates Prisma, applies migrations, seeds demo data, runs both test suites,
+verifies Mailpit, builds both applications, and runs isolated production HTTP smoke tests.
 It runs on pull requests, pushes to `main`, and manual dispatch. Cloud deployments are
 not configured in Phase 1.
 
@@ -148,7 +155,7 @@ After building, use `pnpm --filter @commerce-core/api start` and
 
 ## Scope
 
-No auth, products, cart, checkout, payment, queues, storage integrations, or domain models
-are implemented yet. Redis is connected for readiness only; BullMQ arrives with actual jobs.
-Future modules follow controller → service → data-access boundaries without generating
-unused boilerplate now. See [architecture notes](docs/architecture.md).
+Cart, orders, payments, queues, caching, and cloud deployment are not implemented yet.
+Redis is connected for readiness only. Existing modules follow controller → service →
+data-access boundaries. Live image-provider verification is pending; mocked provider tests
+do not imply an external upload has succeeded. See the phase documents for current scope.

@@ -17,6 +17,18 @@ test('rejects missing database configuration', () => {
   assert.throws(() => validateEnvironment({ REDIS_URL: valid.REDIS_URL }), /DATABASE_URL/);
 });
 
+test('requires all Cloudinary settings together without printing a supplied credential', () => {
+  assert.throws(
+    () => validateEnvironment({ ...valid, CLOUDINARY_API_SECRET: 'fake-provider-secret' }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /CLOUDINARY_CLOUD_NAME/);
+      assert.doesNotMatch(error.message, /fake-provider-secret/);
+      return true;
+    },
+  );
+});
+
 test('reports malformed URLs as configuration errors', () => {
   assert.throws(
     () => validateEnvironment({ ...valid, DATABASE_URL: 'not a URL' }),

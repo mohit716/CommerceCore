@@ -3,6 +3,7 @@ node_modules
 .next
 dist
 .test-dist
+.seed-dist
 coverage
 apps/api/src/generated
 next-env.d.ts

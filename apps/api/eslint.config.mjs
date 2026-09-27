@@ -4,7 +4,7 @@ import globals from 'globals';
 import prettier from 'eslint-config-prettier/flat';
 
 export default tseslint.config(
-  { ignores: ['dist/**', '.test-dist/**', 'src/generated/**'] },
+  { ignores: ['dist/**', '.test-dist/**', '.seed-dist/**', 'src/generated/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { languageOptions: { globals: globals.node } },

@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -8,4 +8,107 @@ datasource db {
   provider = "postgresql"
 }
 
-// Domain models and the first migration are intentionally deferred to Phase 2.
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model User {
+  id                 String              @id @default(uuid()) @db.Uuid
+  email              String              @unique @db.VarChar(254)
+  name               String              @db.VarChar(100)
+  passwordHash       String
+  role               Role                @default(CUSTOMER)
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
+  sessions           Session[]
+  inventoryMovements InventoryMovement[]
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @db.VarChar(64)
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique @db.VarChar(120)
+  name        String    @db.VarChar(120)
+  description String    @default("")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  products    Product[]
+}
+
+model Product {
+  id                 String              @id @default(uuid()) @db.Uuid
+  sku                String              @unique @db.VarChar(80)
+  slug               String              @unique @db.VarChar(160)
+  name               String              @db.VarChar(160)
+  description        String
+  priceMinor         Int
+  currency           String              @default("USD") @db.VarChar(3)
+  status             ProductStatus       @default(DRAFT)
+  categoryId         String              @db.Uuid
+  category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images             ProductImage[]
+  inventory          Inventory?
+  inventoryMovements InventoryMovement[]
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@index([status, categoryId, priceMinor, id])
+  @@index([status, createdAt, id])
+  @@index([categoryId])
+}
+
+model ProductImage {
+  id         String   @id @default(uuid()) @db.Uuid
+  productId  String   @db.Uuid
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  storageKey String   @unique
+  url        String
+  alt        String   @db.VarChar(240)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([productId, sortOrder])
+}
+
+model Inventory {
+  productId String   @id @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  onHand    Int      @default(0)
+  reserved  Int      @default(0)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model InventoryMovement {
+  id          String   @id @default(uuid()) @db.Uuid
+  productId   String   @db.Uuid
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  actorId     String   @db.Uuid
+  actor       User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  delta       Int
+  reason      String   @db.VarChar(240)
+  operationId String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([productId, operationId])
+  @@index([productId, createdAt, id])
+  @@index([actorId])
+}
