@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Configure local test environment
+        run: cp .env.example .env
+      - name: Validate and start infrastructure
+        run: |
+          docker compose config --quiet
+          docker compose up -d --wait --wait-timeout 90
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Lint
+        run: pnpm lint
+      - name: Type check
+        run: pnpm typecheck
+      - name: Validate Prisma schema
+        run: pnpm db:validate
+      - name: Unit and HTTP contract tests
+        run: pnpm test
+      - name: PostgreSQL and Redis integration test
+        run: pnpm test:integration
+      - name: Verify Mailpit
+        run: curl --fail --retry 5 --retry-delay 2 --retry-connrefused http://localhost:8025/livez
+      - name: Build applications
+        run: pnpm build
+      - name: Infrastructure logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=100
+      - name: Stop CI infrastructure
+        if: always()
+        run: docker compose down
