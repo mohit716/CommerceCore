@@ -19,7 +19,7 @@
     "db:seed": "tsc -p tsconfig.seed.json && node .seed-dist/prisma/seed.js"
   },
   "dependencies": {
-    "@nestjs/common": "^11.1.0",
+    "@nestjs/common": "^12.1.2",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-express": "^11.1.0",
